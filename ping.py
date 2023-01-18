@@ -6,9 +6,10 @@ import time
 from datetime import datetime
 import boto3
 
-TARGET = "8.8.8.8"
+RUN_TIME = 10 ### NOTE - Time in seconds script is to run
+START_TIME = time.time()
+TARGET = "10.213.117.25"
 NUMBER_OF_PINGS = 200
-ITERATIONS = 25
 ### MAC REGEX
 """
 REGEX = re.compile(
@@ -30,18 +31,13 @@ CLOUDWATCH_LOGS = boto3.client(
     aws_secret_access_key=os.environ["secret_key"],
 )
 
-
-def main(q):
-    q.put(ping(TARGET))
-
-
-def ping(address):
+def ping(q):
     start_time = time.time()
     output = check_output(
-        "ping -f -c {qty} {address}".format(address=address, qty=NUMBER_OF_PINGS),
+        "ping -f -c {qty} {address}".format(address=TARGET, qty=NUMBER_OF_PINGS),
         shell=True,
     ).decode("utf-8")
-    return output, start_time
+    q.put((output, start_time))
 
 
 def upload(q, ping_result, stream_name):
@@ -140,8 +136,8 @@ if __name__ == "__main__":
     CLOUDWATCH_LOGS.create_log_stream(
         logGroupName="/wavelength/ping-data", logStreamName=stream_name
     )
-    for _ in range(ITERATIONS):
-        pq = Process(target=main, args=(ping_queue,))
+    while (time.time() - START_TIME) < RUN_TIME:
+        pq = Process(target=ping, args=(ping_queue,))
         pq.start()
         ping_result = ping_queue.get()
         uq = Process(
