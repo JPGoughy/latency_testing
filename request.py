@@ -5,8 +5,8 @@ from multiprocessing import Process, Queue
 from datetime import datetime
 import time
 
-RUN_TIME = 120 ### NOTE - Time in seconds script is to run
-TARGET = "0.0.0.0:5006"
+RUN_TIME = 600 ### NOTE - Time in seconds script is to run
+TARGET = "3.11.9.231:80"
 START_TIME = time.time()
 SESSION = Session()
 SESSION.trust_env = False
@@ -54,7 +54,6 @@ def upload(q, responses, stream_name):
             }
         ],
     )
-    print(responses[0].status_code)
 
 if __name__ == "__main__":
     request_queue = Queue()
@@ -65,13 +64,10 @@ if __name__ == "__main__":
     CLOUDWATCH_LOGS.create_log_stream(
         logGroupName="/wavelength/ping-data", logStreamName=stream_name
     )
-    print(datetime.now())
-    total = 0
     while (time.time() - START_TIME) < RUN_TIME:
         rq = Process(target=call, args=(request_queue, ))
         rq.start()
         responses = request_queue.get()
-        total += 1
         uq = Process(
             target=upload,
             args=(
@@ -81,7 +77,5 @@ if __name__ == "__main__":
             ),
         )
         uq.start()
-    print(datetime.now())
-    print(total)
     rq.join()
     uq.join()

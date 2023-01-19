@@ -6,9 +6,9 @@ import time
 from datetime import datetime
 import boto3
 
-RUN_TIME = 10 ### NOTE - Time in seconds script is to run
+RUN_TIME = 600 ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
-TARGET = "10.213.117.25"
+TARGET = "3.11.9.231"
 NUMBER_OF_PINGS = 200
 ### MAC REGEX
 """
