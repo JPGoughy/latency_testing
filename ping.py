@@ -8,8 +8,8 @@ import boto3
 
 RUN_TIME = 600 ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
-TARGET = "3.11.9.231"
-NUMBER_OF_PINGS = 200
+TARGET = "x.x.x.x"
+NUMBER_OF_PINGS = 50
 ### MAC REGEX
 """
 REGEX = re.compile(

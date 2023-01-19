@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 RUN_TIME = 600 ### NOTE - Time in seconds script is to run
-TARGET = "3.11.9.231:80"
+TARGET = "x.x.x.x:x"
 START_TIME = time.time()
 SESSION = Session()
 SESSION.trust_env = False
@@ -48,7 +48,7 @@ def upload(q, responses, stream_name):
                     {"Name": "target", "Value": TARGET},
                 ],
                 "Timestamp": formatted_time,
-                "Value": float(responses[1]),
+                "Value": float(responses[1]*1000),
                 "Unit": "Milliseconds",
                 "StorageResolution": 1,
             }
