@@ -5,7 +5,7 @@ from multiprocessing import Process, Queue
 from datetime import datetime
 import time
 
-RUN_TIME = 600 ### NOTE - Time in seconds script is to run
+RUN_TIME = 10800 ### NOTE - Time in seconds script is to run
 TARGET = "x.x.x.x:x"
 START_TIME = time.time()
 SESSION = Session()
@@ -36,7 +36,7 @@ def upload(q, responses, stream_name):
         logGroupName="/wavelength/ping-data",
         logStreamName=stream_name,
         logEvents=[
-            {"message": f"{str(responses[0].status_code)} - {str(responses[0].text)}", "timestamp": int(responses[2] * 1000)}
+            {"message": f"{str(responses[0].status_code)} - {str(responses[0].text)} - RTT: {str(responses[1])}", "timestamp": int(responses[2] * 1000)}
         ],
     )
     CLOUDWATCH.put_metric_data(

@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 import boto3
 
-RUN_TIME = 600 ### NOTE - Time in seconds script is to run
+RUN_TIME = 10800 ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
 TARGET = "x.x.x.x"
 NUMBER_OF_PINGS = 50
