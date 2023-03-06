@@ -5,10 +5,11 @@ import os
 import time
 from datetime import datetime
 import boto3
-from boto3.exceptions import ClientError
+from botocore.exceptions import ClientError
 
 RUN_TIME = 10800 ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
+WHOM = "xxxx" #This is the indentifier of which compute is running this
 TARGET = "x.x.x.x"
 NUMBER_OF_PINGS = 50
 ### MAC REGEX
@@ -56,7 +57,7 @@ def upload(q, ping_result, stream_name):
     formatted_time = datetime.fromtimestamp(ping_result[1])
     try:
         CLOUDWATCH_LOGS.put_log_events(
-            logGroupName="/wavelength/ping-data",
+            logGroupName=f"/wavelength/ping-data/{WHOM}",
             logStreamName=stream_name,
             logEvents=[
                 {"message": str(ping_result[0]), "timestamp": int(ping_result[1] * 1000)}
@@ -72,6 +73,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Average Round Trip Time",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][4]),
@@ -82,6 +84,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Minimum Round Trip Time",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][3]),
@@ -92,6 +95,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Maximum Round Trip Time",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][5]),
@@ -102,6 +106,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Standard Deviation Round Trip Time",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][6]),
@@ -112,6 +117,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Packets Transmitted",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][0]),
@@ -122,6 +128,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Packets Received",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][1]),
@@ -132,6 +139,7 @@ def upload(q, ping_result, stream_name):
                     "MetricName": "Packet Loss",
                     "Dimensions": [
                         {"Name": "target", "Value": TARGET},
+                        {"Name": "source", "Value": WHOM},
                     ],
                     "Timestamp": formatted_time,
                     "Value": float(matches[0][2]),
