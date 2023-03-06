@@ -5,9 +5,9 @@ import os
 import time
 from datetime import datetime
 import boto3
-from boto3.exceptions import ClientError
+from botocore.exceptions import ClientError
 
-RUN_TIME = 10800 ### NOTE - Time in seconds script is to run
+RUN_TIME = 10800  ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
 TARGET = "x.x.x.x"
 NUMBER_OF_PINGS = 50
@@ -18,7 +18,9 @@ REGEX = re.compile(
 )
 """
 ### Viking2
-REGEX = re.compile("(\d+) packets transmitted, (\d+) received, (\d+(?:.\d+)*)% packet loss, time \d+ms\nrtt min\/avg\/max\/mdev = (\d+.\d+)\/(\d+.\d+)\/(\d+.\d+)\/(\d+.\d+) ms")
+REGEX = re.compile(
+    "(\d+) packets transmitted, (\d+) received, (\d+(?:.\d+)*)% packet loss, time \d+ms\nrtt min\/avg\/max\/mdev = (\d+.\d+)\/(\d+.\d+)\/(\d+.\d+)\/(\d+.\d+) ms"
+)
 CLOUDWATCH = boto3.client(
     "cloudwatch",
     region_name="eu-west-2",
@@ -32,6 +34,7 @@ CLOUDWATCH_LOGS = boto3.client(
     aws_secret_access_key=os.environ["secret_key"],
 )
 
+
 def ping(q):
     try:
         start_time = time.time()
@@ -41,12 +44,14 @@ def ping(q):
         ).decode("utf-8")
         q.put((output, start_time))
     except CalledProcessError as ping_error:
-        print(f"""
+        print(
+            f"""
         There was an error while trying to ping WL Zone.
         Error: {ping_error.output}
         Command: {ping_error.cmd}
         Code: {ping_error.returncode}
-        """)
+        """
+        )
     except Exception as unknown_error:
         print(f"Unknown Exception. {unknown_error}")
 
@@ -59,7 +64,10 @@ def upload(q, ping_result, stream_name):
             logGroupName="/wavelength/ping-data",
             logStreamName=stream_name,
             logEvents=[
-                {"message": str(ping_result[0]), "timestamp": int(ping_result[1] * 1000)}
+                {
+                    "message": str(ping_result[0]),
+                    "timestamp": int(ping_result[1] * 1000),
+                }
             ],
         )
     except ClientError as aws_error:
@@ -137,7 +145,7 @@ def upload(q, ping_result, stream_name):
                     "Value": float(matches[0][2]),
                     "Unit": "Percent",
                     "StorageResolution": 1,
-                }
+                },
             ],
         )
     except ClientError as aws_error:
