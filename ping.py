@@ -1,10 +1,11 @@
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 from multiprocessing import Process, Queue
 import re
 import os
 import time
 from datetime import datetime
 import boto3
+from boto3.exceptions import ClientError
 
 RUN_TIME = 10800 ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
@@ -32,99 +33,115 @@ CLOUDWATCH_LOGS = boto3.client(
 )
 
 def ping(q):
-    start_time = time.time()
-    output = check_output(
-        "ping -f -c {qty} {address}".format(address=TARGET, qty=NUMBER_OF_PINGS),
-        shell=True,
-    ).decode("utf-8")
-    q.put((output, start_time))
+    try:
+        start_time = time.time()
+        output = check_output(
+            "ping -f -c {qty} {address}".format(address=TARGET, qty=NUMBER_OF_PINGS),
+            shell=True,
+        ).decode("utf-8")
+        q.put((output, start_time))
+    except CalledProcessError as ping_error:
+        print(f"""
+        There was an error while trying to ping WL Zone.
+        Error: {ping_error.output}
+        Command: {ping_error.cmd}
+        Code: {ping_error.returncode}
+        """)
+    except Exception as unknown_error:
+        print(f"Unknown Exception. {unknown_error}")
 
 
 def upload(q, ping_result, stream_name):
     matches = re.findall(REGEX, ping_result[0])
     formatted_time = datetime.fromtimestamp(ping_result[1])
-    CLOUDWATCH_LOGS.put_log_events(
-        logGroupName="/wavelength/ping-data",
-        logStreamName=stream_name,
-        logEvents=[
-            {"message": str(ping_result[0]), "timestamp": int(ping_result[1] * 1000)}
-        ],
-    )
-    CLOUDWATCH.put_metric_data(
-        Namespace="Wavelength",
-        MetricData=[
-            {
-                "MetricName": "Average Round Trip Time",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][4]),
-                "Unit": "Milliseconds",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Minimum Round Trip Time",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][3]),
-                "Unit": "Milliseconds",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Maximum Round Trip Time",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][5]),
-                "Unit": "Milliseconds",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Standard Deviation Round Trip Time",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][6]),
-                "Unit": "Milliseconds",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Packets Transmitted",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][0]),
-                "Unit": "Count",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Packets Received",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][1]),
-                "Unit": "Count",
-                "StorageResolution": 1,
-            },
-            {
-                "MetricName": "Packet Loss",
-                "Dimensions": [
-                    {"Name": "target", "Value": TARGET},
-                ],
-                "Timestamp": formatted_time,
-                "Value": float(matches[0][2]),
-                "Unit": "Percent",
-                "StorageResolution": 1,
-            }
-        ],
-    )
+    try:
+        CLOUDWATCH_LOGS.put_log_events(
+            logGroupName="/wavelength/ping-data",
+            logStreamName=stream_name,
+            logEvents=[
+                {"message": str(ping_result[0]), "timestamp": int(ping_result[1] * 1000)}
+            ],
+        )
+    except ClientError as aws_error:
+        print(f"Cannot upload Log Event to AWS. Error {aws_error}")
+    try:
+        CLOUDWATCH.put_metric_data(
+            Namespace="Wavelength",
+            MetricData=[
+                {
+                    "MetricName": "Average Round Trip Time",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][4]),
+                    "Unit": "Milliseconds",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Minimum Round Trip Time",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][3]),
+                    "Unit": "Milliseconds",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Maximum Round Trip Time",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][5]),
+                    "Unit": "Milliseconds",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Standard Deviation Round Trip Time",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][6]),
+                    "Unit": "Milliseconds",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Packets Transmitted",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][0]),
+                    "Unit": "Count",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Packets Received",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][1]),
+                    "Unit": "Count",
+                    "StorageResolution": 1,
+                },
+                {
+                    "MetricName": "Packet Loss",
+                    "Dimensions": [
+                        {"Name": "target", "Value": TARGET},
+                    ],
+                    "Timestamp": formatted_time,
+                    "Value": float(matches[0][2]),
+                    "Unit": "Percent",
+                    "StorageResolution": 1,
+                }
+            ],
+        )
+    except ClientError as aws_error:
+        print(f"Cannot upload Event Data to AWS. Error {aws_error}")
 
 
 if __name__ == "__main__":
