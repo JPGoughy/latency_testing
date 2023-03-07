@@ -7,7 +7,7 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 
-RUN_TIME = 10800  ### NOTE - Time in seconds script is to run
+RUN_TIME = 121000000  ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
 WHOM = "xxxx"  # This is the indentifier of which compute is running this
 TARGET = "x.x.x.x"
@@ -207,7 +207,7 @@ if __name__ == "__main__":
         time=datetime.now().isoformat()
     ).replace(":", "_")
     CLOUDWATCH_LOGS.create_log_stream(
-        logGroupName="/wavelength/ping-data", logStreamName=stream_name
+        logGroupName=f"/wavelength/ping-data/{WHOM}", logStreamName=stream_name
     )
     while (time.time() - START_TIME) < RUN_TIME:
         pq = Process(target=ping, args=(ping_queue,))
