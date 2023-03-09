@@ -43,9 +43,9 @@ def ping():
     try:
         start_time = time.time()
         output = check_output(
-            "ping -c {qty} {address}".format(
+            "ping -f -c {qty} {address}".format(
                 address=TARGET, qty=NUMBER_OF_PINGS
-            ),  # TODO: add -f back
+            ),
             shell=True,
         ).decode("utf-8")
         return (output, start_time, False)
