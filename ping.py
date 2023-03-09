@@ -1,5 +1,5 @@
 from subprocess import check_output, CalledProcessError
-from multiprocessing import Process, Queue
+from multiprocessing import Pool
 import re
 import os
 import time
@@ -10,14 +10,14 @@ from botocore.exceptions import ClientError
 RUN_TIME = 121000000  ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
 WHOM = "xxxx"  # This is the indentifier of which compute is running this
-TARGET = "x.x.x.x"
+TARGET = "xxxx"
 NUMBER_OF_PINGS = 50
 ### MAC REGEX
-"""
-REGEX = re.compile(
-    "(\d+) packets transmitted, (\d+) packets received, (\d+(?:.\d+)*)% packet loss\nround-trip min\/avg\/max\/stddev = (\d+.\d+)\/(\d+.\d+)\/(\d+.\d+)\/(\d+.\d+) ms"
-)
-"""
+
+# REGEX = re.compile(
+#     "(\d+) packets transmitted, (\d+) packets received, (\d+(?:.\d+)*)% packet loss\nround-trip min\/avg\/max\/stddev = (\d+.\d+)\/(\d+.\d+)\/(\d+.\d+)\/(\d+.\d+) ms"
+# )
+
 ### Viking2
 REGEX = re.compile(
     "(\d+) packets transmitted, (\d+) received, (\d+(?:.\d+)*)% packet loss, time \d+ms\nrtt min\/avg\/max\/mdev = (\d+.\d+)\/(\d+.\d+)\/(\d+.\d+)\/(\d+.\d+) ms"
@@ -34,16 +34,22 @@ CLOUDWATCH_LOGS = boto3.client(
     aws_access_key_id=os.environ["access_key"],
     aws_secret_access_key=os.environ["secret_key"],
 )
+STREAM_NAME = "ICMP_run_start_time_{time}".format(
+    time=datetime.now().isoformat()
+).replace(":", "_")
 
 
-def ping(q):
+def ping():
     try:
         start_time = time.time()
         output = check_output(
-            "ping -f -c {qty} {address}".format(address=TARGET, qty=NUMBER_OF_PINGS),
+            "ping -c {qty} {address}".format(
+                address=TARGET, qty=NUMBER_OF_PINGS
+            ),  # TODO: add -f back
             shell=True,
         ).decode("utf-8")
-        q.put((output, start_time, False))
+        return (output, start_time, False)
+    # q.put((output, start_time, False))
     except CalledProcessError as ping_error:
         print(
             f"""
@@ -53,13 +59,15 @@ def ping(q):
         Code: {ping_error.returncode}
         """
         )
-        q.put((ping_error, start_time, True))
+        return (ping_error, start_time, True)
+        # q.put((ping_error, start_time, True))
     except Exception as unknown_error:
         print(f"Unknown Exception. {unknown_error}")
-        q.put((unknown_error, start_time, True))
+        return (unknown_error, start_time, True)
+        # q.put((unknown_error, start_time, True))
 
 
-def upload(q, ping_result, stream_name):
+def upload(ping_result):
     try:
         formatted_time = datetime.fromtimestamp(ping_result[1])
         has_errored = ping_result[2]
@@ -70,7 +78,7 @@ def upload(q, ping_result, stream_name):
                 message = str(ping_result[0])
             CLOUDWATCH_LOGS.put_log_events(
                 logGroupName=f"/wavelength/ping-data/{WHOM}",
-                logStreamName=stream_name,
+                logStreamName=STREAM_NAME,
                 logEvents=[
                     {
                         "message": message,
@@ -99,7 +107,7 @@ def upload(q, ping_result, stream_name):
             try:
                 CLOUDWATCH_LOGS.put_log_events(
                     logGroupName=f"/wavelength/ping-data/{WHOM}",
-                    logStreamName=stream_name,
+                    logStreamName=STREAM_NAME,
                     logEvents=[
                         {
                             "message": str(ping_result[0]),
@@ -196,31 +204,22 @@ def upload(q, ping_result, stream_name):
                 print(f"Cannot upload Event Data to AWS. Error {aws_error}")
     except Exception as uncaught_exception:
         print(f"Uncaught Exception: {uncaught_exception}")
-    finally:
-        q.put(None)
 
 
 if __name__ == "__main__":
-    ping_queue = Queue()
-    upload_queue = Queue()
-    stream_name = "ICMP_run_start_time_{time}".format(
-        time=datetime.now().isoformat()
-    ).replace(":", "_")
-    CLOUDWATCH_LOGS.create_log_stream(
-        logGroupName=f"/wavelength/ping-data/{WHOM}", logStreamName=stream_name
-    )
-    while (time.time() - START_TIME) < RUN_TIME:
-        pq = Process(target=ping, args=(ping_queue,))
-        pq.start()
-        ping_result = ping_queue.get()
-        uq = Process(
-            target=upload,
-            args=(
-                upload_queue,
-                ping_result,
-                stream_name,
-            ),
+    try:
+        print("Hello! - Starting wavelength ICMP Latency Test")
+        CLOUDWATCH_LOGS.create_log_stream(
+            logGroupName=f"/wavelength/ping-data/{WHOM}", logStreamName=STREAM_NAME
         )
-        uq.start()
-    pq.join()
-    uq.join()
+        with Pool() as p:
+            while True:
+                p.apply_async(
+                    ping,
+                    callback=upload,
+                    error_callback=lambda error: print("Async Error:", error),
+                )
+    except Exception as error:
+        print(f"Something went wrong in the main thread. Error: {error}")
+    finally:
+        print("Goodbye! - Stopping wavelength ICMP Latency Test")
