@@ -13,7 +13,7 @@ cloudwatch = boto3.client(
     aws_access_key_id=os.environ["access_key"],
     aws_secret_access_key=os.environ["secret_key"],
 )
-if os.path.exists("/tmp/ip-logger-ran.tmp"):
+if not os.path.exists("/tmp/ip-logger-ran.tmp"):
     streams = cloudwatch.describe_log_streams(
         logGroupName=f"/wavelength/ping-data/{whom}",
         logStreamNamePrefix=stream_name,
