@@ -1,5 +1,5 @@
 from subprocess import check_output, CalledProcessError
-from multiprocessing import Pool
+from multiprocessing import Process, Queue, Pool
 import re
 import os
 import time
@@ -43,9 +43,7 @@ def ping():
     try:
         start_time = time.time()
         output = check_output(
-            "ping -f -c {qty} {address}".format(
-                address=TARGET, qty=NUMBER_OF_PINGS
-            ),
+            "ping -f -c {qty} {address}".format(address=TARGET, qty=NUMBER_OF_PINGS),
             shell=True,
         ).decode("utf-8")
         return (output, start_time, False)
@@ -212,7 +210,7 @@ if __name__ == "__main__":
         CLOUDWATCH_LOGS.create_log_stream(
             logGroupName=f"/wavelength/ping-data/{WHOM}", logStreamName=STREAM_NAME
         )
-        with Pool() as p:
+        with Pool(maxtasksperchild=10) as p:
             while True:
                 p.apply_async(
                     ping,
