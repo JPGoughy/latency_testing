@@ -3,7 +3,7 @@ import time
 import boto3
 import requests
 
-whom = "BF_Mac_Test"
+whom = "xxxx"
 stream_name = f"PublicIP_{whom}"
 created = True
 cloudwatch = boto3.client(
