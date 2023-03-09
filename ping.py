@@ -217,6 +217,7 @@ if __name__ == "__main__":
                     callback=upload,
                     error_callback=lambda error: print("Async Error:", error),
                 )
+                time.sleep(0.05)
     except Exception as error:
         print(f"Something went wrong in the main thread. Error: {error}")
     finally:
