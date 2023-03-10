@@ -9,8 +9,10 @@ from botocore.exceptions import ClientError
 
 RUN_TIME = 121000000  ### NOTE - Time in seconds script is to run
 START_TIME = time.time()
-WHOM = "xxxx"  # This is the indentifier of which compute is running this
-TARGET = "x.x.x.x"
+WHOM = os.getenv(
+    "WL_ICMP_WHOM", "xxxx"
+)  # This is the indentifier of which compute is running this. Override the xxxx if you dont want env var.
+TARGET = os.getenv("WL_ICMP_IP", "xxxx")  # Override the xxxx if you dont want env var.
 NUMBER_OF_PINGS = 50
 ### MAC REGEX
 """
